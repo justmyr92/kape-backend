@@ -7,7 +7,7 @@ const path = require("path");
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, "../frontend/src/assets/promos"); // Specify where to store the images
+        cb(null, "../kape-main/src/assets/promos"); // Specify where to store the images
     },
     filename: (req, file, cb) => {
         // Make sure the filename is unique by appending the timestamp
