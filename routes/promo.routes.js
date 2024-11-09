@@ -71,4 +71,89 @@ router.get("/get-promos", async (req, res) => {
     }
 });
 
+router.patch(
+    "/update-promo/:id",
+    upload.single("promoImage"), // Multer is configured for 'promoImage'
+    async (req, res) => {
+        const { id } = req.params;
+        const { promoTitle, promoDescription } = req.body;
+        let promoImage = req.file ? req.file.path : null;
+        console.log(req.file);
+        if (!promoTitle || !promoDescription) {
+            return res.status(400).json({
+                error: "Promotion title and description are required",
+            });
+        }
+
+        try {
+            // Check if the promo exists
+            const promoCheck = await pool.query(
+                "SELECT * FROM promotions WHERE promo_id = $1",
+                [id]
+            );
+
+            if (promoCheck.rows.length === 0) {
+                return res.status(404).json({ error: "Promotion not found" });
+            }
+
+            // Update the promotion data
+            const query = `
+                UPDATE promotions 
+                SET 
+                    promo_title = $1, 
+                    promo_description = $2, 
+                    promo_image = COALESCE($3, promo_image)
+                WHERE promo_id = $4 
+                RETURNING *`;
+
+            const values = [promoTitle, promoDescription, promoImage, id];
+            const result = await pool.query(query, values);
+
+            res.status(200).json({
+                message: "Promotion updated successfully",
+                promotion: result.rows[0],
+            });
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: "Failed to update promotion" });
+        }
+    }
+);
+
+// Route to delete a promotion
+router.delete("/delete-promo/:id", async (req, res) => {
+    const { id } = req.params; // Get the promo ID from the URL
+
+    try {
+        // Check if the promo exists before trying to delete
+        const promoCheck = await pool.query(
+            "SELECT * FROM promotions WHERE promo_id = $1",
+            [id]
+        );
+
+        if (promoCheck.rows.length === 0) {
+            return res.status(404).json({ error: "Promotion not found" });
+        }
+
+        // Delete the promo from the database
+        const result = await pool.query(
+            "DELETE FROM promotions WHERE promo_id = $1 RETURNING *",
+            [id]
+        );
+
+        // If the promo doesn't exist, no rows will be deleted
+        if (result.rowCount === 0) {
+            return res
+                .status(404)
+                .json({ error: "Failed to delete promotion" });
+        }
+
+        // Successfully deleted
+        res.status(200).json({ message: "Promotion deleted successfully" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to delete promotion" });
+    }
+});
+
 module.exports = router;
